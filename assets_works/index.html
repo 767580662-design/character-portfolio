@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Character Concept Art Portfolio</title>
+    <style>
+      :root {
+        --bg: #0b0b0d;
+        --surface: #121216;
+        --text: #f2f2f4;
+        --muted: #9a9aa1;
+        --line: #23232a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Inter", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+      }
+
+      .page {
+        width: min(1680px, 100%);
+        margin: 0 auto;
+        padding: 24px 16px 56px;
+      }
+
+      .title {
+        margin: 8px 0 24px;
+        text-align: center;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        font-size: clamp(20px, 2.5vw, 30px);
+      }
+
+      .list {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--surface);
+      }
+
+      .item button {
+        border: 0;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        display: block;
+        background: transparent;
+        cursor: zoom-in;
+      }
+
+      .item img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .viewer {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.92);
+      }
+
+      .viewer.open {
+        display: flex;
+      }
+
+      .viewer-stage {
+        width: 96vw;
+        height: 92vh;
+        overflow: hidden;
+        cursor: grab;
+        position: relative;
+        touch-action: none;
+      }
+
+      .viewer-stage.dragging {
+        cursor: grabbing;
+      }
+
+      .viewer img {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border-radius: 8px;
+        transform-origin: center center;
+        user-select: none;
+        -webkit-user-drag: none;
+        will-change: transform;
+      }
+
+      .viewer-btn {
+        position: absolute;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(12, 12, 16, 0.8);
+        color: #fff;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .viewer-close {
+        top: 14px;
+        right: 14px;
+      }
+
+      .viewer-prev {
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .viewer-next {
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .zoom-controls {
+        position: absolute;
+        bottom: 14px;
+        right: 14px;
+        display: flex;
+        gap: 8px;
+      }
+
+      .viewer-link {
+        position: absolute;
+        left: 14px;
+        bottom: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(12, 12, 16, 0.8);
+        color: #fff;
+        border-radius: 999px;
+        text-decoration: none;
+        padding: 9px 12px;
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      .hint {
+        margin-top: 8px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (min-width: 640px) {
+        .page {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <h1 class="title">Character Concept Art Portfolio</h1>
+      <section id="gallery" class="list" aria-label="Character artworks"></section>
+      <p class="hint">Click image to preview | Arrow keys: Prev/Next | Wheel: Zoom</p>
+    </main>
+
+    <div id="viewer" class="viewer" role="dialog" aria-modal="true" aria-label="Artwork preview">
+      <button id="viewerClose" class="viewer-btn viewer-close" aria-label="Close preview">&times;</button>
+      <button id="viewerPrev" class="viewer-btn viewer-prev" aria-label="Previous image">&#8249;</button>
+      <button id="viewerNext" class="viewer-btn viewer-next" aria-label="Next image">&#8250;</button>
+      <div class="zoom-controls" aria-label="Zoom controls">
+        <button id="zoomOut" class="viewer-btn" aria-label="Zoom out">-</button>
+        <button id="zoomReset" class="viewer-btn" aria-label="Reset zoom">1:1</button>
+        <button id="zoomIn" class="viewer-btn" aria-label="Zoom in">+</button>
+      </div>
+      <a id="openOriginal" class="viewer-link" href="" target="_blank" rel="noopener">查看原图</a>
+      <div id="viewerStage" class="viewer-stage">
+        <img id="viewerImage" src="" alt="Artwork preview" />
+      </div>
+    </div>
+
+    <script>
+      const images = [
+        "001.jpg",
+        "002.jpg",
+        "003.jpg",
+        "004.jpg",
+        "005.jpg",
+        "006.jpg",
+        "007.jpg",
+        "008.jpg",
+        "009.jpg",
+        "010.jpg",
+      ];
+
+      const gallery = document.getElementById("gallery");
+      const viewer = document.getElementById("viewer");
+      const viewerStage = document.getElementById("viewerStage");
+      const viewerImage = document.getElementById("viewerImage");
+      const viewerClose = document.getElementById("viewerClose");
+      const viewerPrev = document.getElementById("viewerPrev");
+      const viewerNext = document.getElementById("viewerNext");
+      const zoomIn = document.getElementById("zoomIn");
+      const zoomOut = document.getElementById("zoomOut");
+      const zoomReset = document.getElementById("zoomReset");
+      const openOriginal = document.getElementById("openOriginal");
+      let currentIndex = 0;
+      let scale = 1;
+      let fitScale = 1;
+      let offsetX = 0;
+      let offsetY = 0;
+      let isDragging = false;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let pinchStartDistance = 0;
+      let pinchStartScale = 1;
+
+      function renderTransform() {
+        viewerImage.style.transform = `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+      }
+
+      function resetTransform() {
+        scale = fitScale;
+        offsetX = 0;
+        offsetY = 0;
+        renderTransform();
+      }
+
+      function applyOneToOne() {
+        scale = 1;
+        offsetX = 0;
+        offsetY = 0;
+        renderTransform();
+      }
+
+      function updateViewerImage() {
+        const src = images[currentIndex];
+        viewerImage.src = src;
+        viewerImage.alt = `Character concept art ${currentIndex + 1}`;
+        openOriginal.href = src;
+      }
+
+      function openViewer(index) {
+        currentIndex = index;
+        updateViewerImage();
+        viewer.classList.add("open");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeViewer() {
+        viewer.classList.remove("open");
+        viewerImage.src = "";
+        document.body.style.overflow = "";
+        resetTransform();
+      }
+
+      function showPrev() {
+        currentIndex = (currentIndex - 1 + images.length) % images.length;
+        updateViewerImage();
+      }
+
+      function showNext() {
+        currentIndex = (currentIndex + 1) % images.length;
+        updateViewerImage();
+      }
+
+      function stepZoom(factor) {
+        scale *= factor;
+        if (scale < 0.05) scale = 0.05;
+        renderTransform();
+      }
+
+      function getTouchDistance(touchA, touchB) {
+        const dx = touchA.clientX - touchB.clientX;
+        const dy = touchA.clientY - touchB.clientY;
+        return Math.hypot(dx, dy);
+      }
+
+      images.forEach((src, index) => {
+        const item = document.createElement("article");
+        item.className = "item";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-label", `Open artwork ${index + 1}`);
+
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = `Character concept art ${index + 1}`;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.onerror = () => item.remove();
+
+        button.addEventListener("click", () => openViewer(index));
+        button.appendChild(img);
+        item.appendChild(button);
+        gallery.appendChild(item);
+      });
+
+      viewerClose.addEventListener("click", closeViewer);
+      viewerPrev.addEventListener("click", showPrev);
+      viewerNext.addEventListener("click", showNext);
+      zoomIn.addEventListener("click", () => stepZoom(1.2));
+      zoomOut.addEventListener("click", () => stepZoom(1 / 1.2));
+      zoomReset.addEventListener("click", applyOneToOne);
+
+      viewer.addEventListener("click", (event) => {
+        if (event.target === viewer) closeViewer();
+      });
+
+      viewerImage.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        stepZoom(event.deltaY < 0 ? 1.12 : 1 / 1.12);
+      });
+
+      viewerImage.addEventListener("dblclick", () => {
+        stepZoom(1.4);
+      });
+
+      viewerImage.addEventListener("load", () => {
+        const stageRect = viewerStage.getBoundingClientRect();
+        const imageW = viewerImage.naturalWidth || 1;
+        const imageH = viewerImage.naturalHeight || 1;
+        fitScale = Math.min(stageRect.width / imageW, stageRect.height / imageH, 1);
+        resetTransform();
+      });
+
+      viewerStage.addEventListener("mousedown", (event) => {
+        if (!viewer.classList.contains("open")) return;
+        isDragging = true;
+        viewerStage.classList.add("dragging");
+        dragStartX = event.clientX - offsetX;
+        dragStartY = event.clientY - offsetY;
+      });
+
+      window.addEventListener("mousemove", (event) => {
+        if (!isDragging) return;
+        offsetX = event.clientX - dragStartX;
+        offsetY = event.clientY - dragStartY;
+        renderTransform();
+      });
+
+      window.addEventListener("mouseup", () => {
+        isDragging = false;
+        viewerStage.classList.remove("dragging");
+      });
+
+      viewerStage.addEventListener(
+        "touchstart",
+        (event) => {
+          if (!viewer.classList.contains("open")) return;
+          if (event.touches.length === 2) {
+            pinchStartDistance = getTouchDistance(event.touches[0], event.touches[1]);
+            pinchStartScale = scale;
+            isDragging = false;
+            return;
+          }
+          if (event.touches.length === 1) {
+            isDragging = true;
+            dragStartX = event.touches[0].clientX - offsetX;
+            dragStartY = event.touches[0].clientY - offsetY;
+          }
+        },
+        { passive: false }
+      );
+
+      viewerStage.addEventListener(
+        "touchmove",
+        (event) => {
+          if (!viewer.classList.contains("open")) return;
+          event.preventDefault();
+          if (event.touches.length === 2 && pinchStartDistance > 0) {
+            const currentDistance = getTouchDistance(event.touches[0], event.touches[1]);
+            scale = pinchStartScale * (currentDistance / pinchStartDistance);
+            if (scale < 0.05) scale = 0.05;
+            renderTransform();
+            return;
+          }
+          if (event.touches.length === 1 && isDragging) {
+            offsetX = event.touches[0].clientX - dragStartX;
+            offsetY = event.touches[0].clientY - dragStartY;
+            renderTransform();
+          }
+        },
+        { passive: false }
+      );
+
+      viewerStage.addEventListener("touchend", (event) => {
+        if (!viewer.classList.contains("open")) return;
+        if (event.touches && event.touches.length === 0) {
+          isDragging = false;
+          pinchStartDistance = 0;
+        }
+      });
+
+      viewerStage.addEventListener("touchcancel", () => {
+        isDragging = false;
+        pinchStartDistance = 0;
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (!viewer.classList.contains("open")) return;
+        if (event.key === "Escape") closeViewer();
+        if (event.key === "ArrowLeft") showPrev();
+        if (event.key === "ArrowRight") showNext();
+        if (event.key === "+" || event.key === "=") stepZoom(1.12);
+        if (event.key === "-") stepZoom(1 / 1.12);
+      });
+    </script>
+  </body>
+</html>
